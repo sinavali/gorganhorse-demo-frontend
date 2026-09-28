@@ -1,6 +1,6 @@
 @media print {
   :root { --ink:#000; --line:#9aa5a0; }
-  html,body { background:#fff !important; color:#000 !important; font-size:11pt; }
+  html,body { background:#fff !important; color:#000 !important; font-size:11pt; margin:0 !important; padding:0 !important; }
   #side,#top,#toasts,#ov,#drw,#mw,#palW,#palOv,.no-print,
   .btn,.btn-i,.chip,.pager,.ghf-dp{ display:none !important; }
   #printHost{ display:block !important; position:static !important; inset:auto !important; padding:0 !important; background:#fff !important; }
@@ -8,6 +8,7 @@
   #shell.on { display:block !important; }
   #main { margin:0 !important; padding:0 !important; }
   #content { padding:0 !important; max-width:100% !important; }
+  body:has(#printArea:not(:empty)) #content { display:none !important; }
   .panel,.card,.stat { border:1px solid #000 !important; box-shadow:none !important; background:#fff !important; break-inside:avoid; }
   h1,h2,h3,.dsp { color:#000 !important; }
   table.tb, #printArea table { width:100% !important; border-collapse:collapse !important; }
