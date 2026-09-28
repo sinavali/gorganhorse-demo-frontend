@@ -183,7 +183,7 @@ var mOpen=false;
 function openModal(html,max){var b=$('#mbox');if(!b)return;b.innerHTML=html;b.style.maxWidth=max||'640px';$('#mw').classList.add('on');layOn();requestAnimationFrame(function(){b.classList.add('on');});mOpen=true;var f=b.querySelector('input,select,textarea');if(f)setTimeout(function(){f.focus();},140);}
 function closeModal(){if(!mOpen)return;var b=$('#mbox');b.classList.remove('on');mOpen=false;layOff();setTimeout(function(){if(!mOpen){$('#mw').classList.remove('on');b.innerHTML='';}},200);}
 var dOpen=false;
-function openDrawer(html,wide){var d=$('#drw');d.innerHTML=html;d.classList.toggle('wide',!!wide);d.setAttribute('aria-hidden','false');layOn();requestAnimationFrame(function(){d.classList.add('on');});dOpen=true;}
+function openDrawer(html,wide){var d=$('#drw');d.innerHTML='<div style="display:flex;flex-direction:column;height:100%;max-height:100vh;overflow:hidden">'+html+'</div>';d.classList.toggle('wide',!!wide);d.setAttribute('aria-hidden','false');layOn();requestAnimationFrame(function(){d.classList.add('on');});dOpen=true;}
 function closeDrawer(){if(!dOpen)return;var d=$('#drw');d.classList.remove('on');d.setAttribute('aria-hidden','true');dOpen=false;layOff();S.drawer=null;setTimeout(function(){if(!dOpen)d.innerHTML='';},300);}
 function closeAll(){closeDrawer();closeModal();sideClose();}
 function confirmDlg(o){openModal('<div class="pad" style="border-bottom:1px solid var(--border)"><div class="row gap3"><span class="badge '+(o.tone||'b-bad')+'" style="width:38px;height:38px;border-radius:12px;justify-content:center">'+ic(o.icon||'i-info','')+'</span><div class="g1"><h3 class="dsp bb" style="font-size:16.5px">'+esc(o.title)+'</h3><p class="mut i13 mt1" style="line-height:1.55">'+(o.body||'')+'</p></div></div></div><div class="pad jend row gap2"><button class="btn btn-g" data-action="ui.closeModal">'+esc(T('Cancel'))+'</button><button class="btn '+(o.tone==='b-bad'||!o.tone?'btn-d':'btn-p')+'" data-action="ui.confirmYes">'+esc(o.ok||T('Confirm'))+'</button></div>','480px');confirmDlg._fn=o.onOk;}
@@ -202,7 +202,15 @@ function renderNav(){var list=NAV[SES.role],secs={};list.forEach(function(pg){va
 function bellCount(){var c=DB.notifs.filter(function(x){return !x.read;}).length,d=$('#bellDot');if(!d)return;d.textContent=(I&&I.toFaDigits)?I.toFaDigits(c>9?'9+':c):(c>9?'9+':c);d.style.display=c?'grid':'none';}
 function go(pg,opts){if(!allowed(pg)){toast(T('That module is not available for your role.'),'w');return;}S.page=pg;closeDrawer();closeModal();var cr=$('#crumb');if(cr)cr.textContent=T(PAGES[pg].label);renderNav();render();if(window.scrollTo)if(window.scrollTo)window.scrollTo({top:0,behavior:'smooth'});if(opts&&opts.toast)toast(opts.toast);}
 function render(){var c=$('#content');if(!c)return;var fn=RENDER[S.page]||RENDER.dashboard;c.innerHTML='<div class="fade-in">'+fn()+'</div>';if(I&&I.mountDatePickers)I.mountDatePickers(c);}
-function refresh(){save();renderNav();bellCount();render();}
+function refreshDrawer(){
+  if(!dOpen||!S.drawer)return;
+  if(S.drawer.type==='horse')horseDrawer(S.drawer.id);
+  else if(S.drawer.type==='member')A['member.view']({dataset:{id:S.drawer.id}});
+  else if(S.drawer.type==='event')eventDrawer(S.drawer.id);
+  else if(S.drawer.type==='txn')A['txn.view']({dataset:{id:S.drawer.id}});
+  else if(S.drawer.type==='invoice')A['invoice.view']({dataset:{id:S.drawer.id}});
+}
+function refresh(){save();renderNav();bellCount();render();refreshDrawer();}
 var RENDER={};
 RENDER.dashboard=function(){var inc=sum(DB.finance.filter(function(f){return f.type==='Income';}),function(f){return f.amount;});var exp=sum(DB.finance.filter(function(f){return f.type==='Expense';}),function(f){return f.amount;});var pend=DB.members.filter(function(m){return m.status==='Pending';}).length;var overdue=DB.health.filter(function(r){return r.status==='Overdue';}).length;var unpaid=DB.invoices.filter(function(v){return v.status!=='Paid';}).length;
  var h='<div class="hero pad" style="padding:26px"><div style="position:relative" class="row gap4 wrap"><div class="g1" style="min-width:280px"><span class="badge" style="background:rgba(224,172,58,.18);color:#f0d79a">'+ic('i-star','icf')+' '+esc(T('Season'))+' 1405</span><h1 class="dsp bb mt3" style="font-size:clamp(22px,2.6vw,31px);color:#fff;line-height:1.2">'+esc(T('Welcome back'))+', '+esc(SES.name.split(' ')[0])+'</h1><p class="mt2 i13" style="color:#a9c3b5">'+esc(T('All figures are live demo data.'))+'</p><div class="row gap2 wrap mt4">'+(can('horse.w')?'<button class="btn btn-gold" data-action="horse.new">'+ic('i-plus','')+' '+esc(T('Register horse'))+'</button>':'')+'<button class="btn" style="background:rgba(255,255,255,.1);color:#fff" data-action="nav" data-page="events">'+ic('i-calendar','')+' '+esc(T('Competition calendar'))+'</button></div></div></div></div>';
@@ -252,23 +260,25 @@ RENDER.finance=function(){var u=S.ui.finance,w=can('finance.w');var inc=sum(DB.f
 /* ===END RENDERERS=== */
 
 RENDER.reports=function(){var u=S.ui.reports;var rows=[
-  {id:'k1',label:T('Registrations processed'),module:'horses',region:'all',status:'ok',value:1284},
-  {id:'k2',label:T('Competition entries'),module:'events',region:'all',status:'ok',value:sum(DB.events,function(e){return (e.entries||[]).length;})},
-  {id:'k3',label:T('Active members'),module:'members',region:'all',status:'ok',value:DB.members.filter(function(m){return m.status==='Active';}).length},
-  {id:'k4',label:T('Revenue (M IRT)'),module:'finance',region:'all',status:'ok',value:Math.round(sum(DB.finance.filter(function(f){return f.type==='Income';}),function(f){return f.amount;})/1e6)},
-  {id:'k5',label:T('Horses by region')+' - Gorgan',module:'horses',region:'Gorgan',status:'ok',value:DB.horses.filter(function(h){return h.region==='Gorgan';}).length},
-  {id:'k6',label:T('Horses by region')+' - Gonbad-e Kavus',module:'horses',region:'Gonbad-e Kavus',status:'ok',value:DB.horses.filter(function(h){return h.region==='Gonbad-e Kavus';}).length},
-  {id:'k7',label:T('Horses by region')+' - Bandar Torkaman',module:'horses',region:'Bandar Torkaman',status:'ok',value:DB.horses.filter(function(h){return h.region==='Bandar Torkaman';}).length}
+  {id:'k1',label:T('Registrations processed'),module:'horses',region:'all',metric:'registrations',status:'ok',value:DB.horses.length},
+  {id:'k2',label:T('Competition entries'),module:'events',region:'all',metric:'entries',status:'ok',value:sum(DB.events,function(e){return (e.entries||[]).length;})},
+  {id:'k3',label:T('Active members'),module:'members',region:'all',metric:'registrations',status:'ok',value:DB.members.filter(function(m){return m.status==='Active';}).length},
+  {id:'k4',label:T('Revenue (M IRT)'),module:'finance',region:'all',metric:'revenue',status:'ok',value:Math.round(sum(DB.finance.filter(function(f){return f.type==='Income';}),function(f){return f.amount;})/1e6)}
 ];
+REGIONS.forEach(function(reg){
+  rows.push({id:'k-reg-'+reg,label:T('Horses by region')+' - '+reg,module:'horses',region:reg,metric:'registrations',status:'ok',value:DB.horses.filter(function(h){return h.region===reg;}).length});
+  rows.push({id:'k-rev-'+reg,label:T('Revenue by region')+' - '+reg,module:'finance',region:reg,metric:'revenue',status:'ok',value:Math.round(sum(DB.finance.filter(function(f){var m=member(f.ref);return f.type==='Income'&&(m?m.region===reg:true);}),function(f){return f.amount;})/1e6)});
+});
  if(u.region!=='all')rows=rows.filter(function(r){return r.region==='all'||r.region===u.region;});
  if(u.module!=='all')rows=rows.filter(function(r){return r.module===u.module;});
  if(u.status!=='all')rows=rows.filter(function(r){return r.status===u.status;});
+ if(u.metric!=='all')rows=rows.filter(function(r){return r.metric===u.metric;});
  rows=sortRows(rows,u.sort,u.dir);
  var pages=Math.max(1,Math.ceil(rows.length/u.perPage));if(u.page>pages)u.page=pages;var slice=rows.slice((u.page-1)*u.perPage,u.page*u.perPage);
  var h=pageHead('Reports & Analytics',esc(T('Flexible filters, sorting and pagination across all datasets.')),'<button class="btn btn-g" data-action="report.print">'+ic('i-print','')+' '+esc(T('Print'))+'</button><button class="btn btn-g" data-action="report.export">'+ic('i-dl','')+' '+esc(T('Export CSV'))+'</button>');
  h+='<div class="panel pad mb4"><div class="flt"><div class="fld"><label>'+esc(T('Module'))+'</label>'+selBox('rmodule',['all','horses','members','events','finance'],u.module,'All')+'</div><div class="fld"><label>'+esc(T('Region'))+'</label>'+selBox('rregion',['all'].concat(REGIONS),u.region,'All')+'</div><div class="fld"><label>'+esc(T('Status'))+'</label>'+selBox('rstatus',['all','ok'],u.status,'All')+'</div><div class="fld"><label>'+esc(T('Metric'))+'</label>'+selBox('rmetric',['registrations','revenue','entries'],u.metric,'All')+'</div></div></div>';
  h+='<div class="panel"><div class="pad-s row jb gap2 wrap"><div class="mut i12">'+n(rows.length)+' '+esc(T('indicators'))+'</div></div>';
- h+=tw('<table class="tb"><thead><tr>'+thSort('label','Indicator',u)+thSort('module','Module',u)+thSort('region','Region',u)+thSort('value','Value',u)+'</tr></thead><tbody>'+slice.map(function(r){return '<tr><td class="i13 b">'+esc(r.label)+'</td><td>'+bdg('Published')+'</td><td class="i12">'+esc(T(r.region))+'</td><td class="b i13">'+n(r.value)+'</td></tr>';}).join('')+'</tbody></table>')+(rows.length?pager(rows.length,u.page,u.perPage,'report.page'):empty('No data','Adjust filters.'))+'</div>';
+ h+=tw('<table class="tb"><thead><tr>'+thSort('label','Indicator',u)+thSort('module','Module',u)+thSort('region','Region',u)+thSort('value','Value',u)+'</tr></thead><tbody>'+slice.map(function(r){return '<tr><td class="i13 b">'+esc(r.label)+'</td><td><span class="badge b-ok">'+esc(T(r.module))+'</span></td><td class="i12">'+esc(T(r.region))+'</td><td class="b i13">'+n(r.value)+'</td></tr>';}).join('')+'</tbody></table>')+(rows.length?pager(rows.length,u.page,u.perPage,'report.page'):empty('No data','Adjust filters.'))+'</div>';
  return h;};
 RENDER.notifications=function(){var u=S.ui.notif;var list=DB.notifs.filter(function(x){return u.f==='all'||(u.f==='unread'?!x.read:x.read);});
  var h=pageHead('Notifications',esc(T('System and workflow alerts.')),'<button class="btn btn-g" data-action="notif.all">'+ic('i-check','')+' '+esc(T('Mark all read'))+'</button>');
@@ -278,12 +288,15 @@ RENDER.notifications=function(){var u=S.ui.notif;var list=DB.notifs.filter(funct
 RENDER.audit=function(){var u=S.ui.audit;var rows=sortRows(DB.audit.filter(function(a){return (u.module==='all'||a.module===u.module)&&(!u.q||a.action.toLowerCase().indexOf(u.q)>=0);}),u.sort,u.dir);var pages=Math.max(1,Math.ceil(rows.length/u.perPage));if(u.page>pages)u.page=pages;var slice=rows.slice((u.page-1)*u.perPage,u.page*u.perPage);
  var h=pageHead('Audit Log',esc(T('Every action is recorded.')),'<button class="btn btn-g" data-action="audit.export">'+ic('i-dl','')+' '+esc(T('Export CSV'))+'</button>'+(can('settings.w')?'<button class="btn btn-d" data-action="audit.clear">'+ic('i-trash','')+' '+esc(T('Clear'))+'</button>':''));
  h+='<div class="panel"><div class="pad-s row gap2 wrap">'+searchBox('Search log','aq',u.q)+selBox('amod',['all','auth','horses','members','events','health','finance','settings','reports','general'],u.module,'All modules')+'</div>';
- h+=tw('<table class="tb"><thead><tr>'+thSort('at','Time',u)+thSort('action','Action',u)+thSort('actor','Actor',u)+thSort('module','Module',u)+'</tr></thead><tbody>'+slice.map(function(a){return '<tr><td class="i12">'+esc(a.at)+'</td><td class="i13">'+esc(a.action)+'</td><td class="i12">'+esc(a.actor)+'</td><td>'+bdg('Published')+'</td></tr>';}).join('')+'</tbody></table>')+(rows.length?pager(rows.length,u.page,u.perPage,'audit.page'):empty('No log entries',''))+'</div>';
+ h+=tw('<table class="tb"><thead><tr>'+thSort('at','Time',u)+thSort('action','Action',u)+thSort('actor','Actor',u)+thSort('module','Module',u)+'</tr></thead><tbody>'+slice.map(function(a){return '<tr><td class="i12">'+esc(a.at)+'</td><td class="i13">'+esc(a.action)+'</td><td class="i12">'+esc(a.actor)+'</td><td><span class="badge '+(a.tone||'b-mut')+'">'+esc(T(a.module))+'</span></td></tr>';}).join('')+'</tbody></table>')+(rows.length?pager(rows.length,u.page,u.perPage,'audit.page'):empty('No log entries',''))+'</div>';
  return h;};
-RENDER.settings=function(){var o=(DB.prefs&&DB.prefs.org)||{};
+RENDER.settings=function(){var o=(DB.prefs&&DB.prefs.org)||{}; var reqs=(DB.requests||[]).filter(function(r){return r.status==='Pending';});
  var h=pageHead('Settings',esc(T('Organisation, preferences and data.')),'');
- h+='<div class="grid main31"><div class="panel pad"><h3 class="dsp bb" style="font-size:16px">'+esc(T('Organisation profile'))+'</h3><div class="mt3 grid c2" style="gap:10px">'+kv('Name',esc(o.name||''))+kv('Registration',esc(o.reg||''))+kv('Phone',esc(o.phone||''))+kv('Email',esc(o.email||''))+'</div>'+(can('settings.w')?'<form id="orgF" class="mt4 row gap2"><input class="inp" name="name" value="'+esc(o.name||'')+'"'+tip(T('Name'))+'/><input class="inp" name="phone" value="'+esc(o.phone||'')+'"'+tip(T('Phone'))+'/><button class="btn btn-p" type="submit">'+esc(T('Save'))+'</button></form>':'')+'</div>'+
+ h+='<div class="grid main31"><div class="panel pad"><h3 class="dsp bb" style="font-size:16px">'+esc(T('Organisation profile'))+'</h3><div class="mt3 grid c2" style="gap:10px">'+kv('Name',esc(o.name||''))+kv('Registration',esc(o.reg||''))+kv('Phone',esc(o.phone||''))+kv('Email',esc(o.email||''))+'</div>'+(can('settings.w')?'<form id="orgF" class="mt4 row gap2"><input class="inp" name="name" value="'+esc(o.name||'')+'" placeholder="'+esc(T('Name'))+'"/><input class="inp" name="phone" value="'+esc(o.phone||'')+'" placeholder="'+esc(T('Phone'))+'"/><button class="btn btn-p" type="submit">'+esc(T('Save'))+'</button></form>':'')+'</div>'+
   '<div class="panel pad"><h3 class="dsp bb" style="font-size:16px">'+esc(T('Preferences'))+'</h3><div class="mt3"><div class="mut i11 b mb2">'+esc(T('Language'))+'</div><div class="langsw"><button class="'+(I&&I.lang==='fa-IR'?'on':'')+'" data-action="set.lang" data-v="fa-IR">'+'\u0641\u0627\u0631\u0633\u06cc'+'</button><button class="'+(I&&I.lang==='en-US'?'on':'')+'" data-action="set.lang" data-v="en-US">English</button></div></div><div class="mt3"><div class="mut i11 b mb2">'+esc(T('Theme'))+'</div><div class="row gap2">'+btnI('i-moon',T('Dark'),'set.theme','data-v="dark"')+btnI('i-sun',T('Light'),'set.theme','data-v="light"')+'</div></div><div class="mt3"><div class="mut i11 b mb2">'+esc(T('Backup'))+'</div><div class="row gap2"><button class="btn btn-g" data-action="set.backup">'+ic('i-dl','')+' '+esc(T('Backup'))+'</button>'+(can('settings.w')?'<button class="btn btn-d" data-action="set.reset">'+ic('i-refresh','')+' '+esc(T('Reset demo data'))+'</button>':'')+'</div></div></div></div>';
+ if(can('approve.w')){
+  h+='<div class="panel pad mt5"><h3 class="dsp bb" style="font-size:16px">'+esc(T('Pending approval requests'))+' ('+n(reqs.length)+')</h3>'+(reqs.length?tw('<table class="tb mt3"><thead><tr><th>'+esc(T('Requested by'))+'</th><th>'+esc(T('Type'))+'</th><th>'+esc(T('Details'))+'</th><th>'+esc(T('Date'))+'</th><th>'+esc(T('Actions'))+'</th></tr></thead><tbody>'+reqs.map(function(r){return '<tr><td class="b i13">'+esc(mname(r.ownerId))+'</td><td class="i12">'+esc(r.kind)+'</td><td class="i13">'+esc(r.label)+'</td><td class="i12">'+fD(r.at)+'</td><td><div class="row gap1"><button class="btn btn-s btn-sm" data-action="req.approve" data-id="'+r.id+'">'+ic('i-check','')+' '+esc(T('Approve'))+'</button><button class="btn btn-d btn-sm" data-action="req.reject" data-id="'+r.id+'">'+ic('i-x','')+' '+esc(T('Reject'))+'</button></div></td></tr>';}).join('')+'</tbody></table>'):empty('No pending requests','Rider submissions will appear here for review.'))+'</div>';
+ }
  return h;};
 RENDER.portal=function(){var m=member(SES.memberId);if(!m)return '<div class="panel pad">'+empty('No member profile linked','')+'</div>';var hs=ownerHorses(m.id),u=S.ui.portal;var ents=[];DB.events.forEach(function(e){(e.entries||[]).forEach(function(en){var h=horse(en.horseId);if(h&&h.ownerId===m.id)ents.push({e:e,en:en,h:h});});});var ivs=DB.invoices.filter(function(v){return v.memberId===m.id;});var due=sum(ivs.filter(function(v){return v.status!=='Paid';}),invTotal);var myreq=(DB.requests||[]).filter(function(r){return r.ownerId===m.id;});
  var h='<div class="hero pad" style="padding:24px"><div class="row gap4 wrap" style="position:relative">'+av(m.name,'l',m.id)+'<div class="g1"><div class="i11" style="color:#a9c3b5">'+esc(m.licence)+' \u00b7 '+esc(T(m.role))+' \u00b7 '+esc(m.region)+'</div><h1 class="dsp bb" style="font-size:24px;color:#fff">'+esc(T('Welcome back'))+', '+esc(m.name.split(' ')[0])+'</h1></div><div class="row gap2 wrap">'+(due?'<button class="btn btn-gold" data-action="portal.payAll">'+ic('i-wallet','')+' '+esc(T('Pay'))+' '+K(due)+'</button>':'')+'<button class="btn" style="background:rgba(255,255,255,.1);color:#fff" data-action="horse.new">'+ic('i-plus','')+' '+esc(T('Add horse'))+'</button></div></div></div>';
@@ -338,9 +351,24 @@ A['finance.page']=function(el){S.ui.finance.page=+el.dataset.p;render();};
 A['finance.export']=function(){csv('finance.csv',['Date','Type','Category','Amount','Status'],DB.finance.map(function(f){return [f.date,f.type,f.cat,f.amount,f.status];}));};
 A['txn.new']=function(){if(need('finance.w'))txnForm(null);};
 A['txn.edit']=function(el){if(need('finance.w'))txnForm(DB.finance.filter(function(f){return f.id===el.dataset.id;})[0]);};
-A['txn.view']=function(el){var f=DB.finance.filter(function(x){return x.id===el.dataset.id;})[0];if(!f)return;openDrawer('<div class="pad"><div class="row jb"><h3 class="dsp bb">'+esc(T(f.cat))+'</h3><button class="btn-i" data-action="ui.closeDrawer">'+ic('i-x','')+'</button></div><div class="grid c2 mt3" style="gap:10px">'+kv('Date',fD(f.date))+kv('Type',T(f.type))+kv('Amount',K(f.amount))+kv('Status',T(f.status))+'</div></div>',false);};
+A['txn.view']=function(el){var f=DB.finance.filter(function(x){return x.id===el.dataset.id;})[0];if(!f)return;var w=can('finance.w');
+ var th='<div class="pad" style="border-bottom:1px solid var(--border);flex:none"><div class="row jb"><h3 class="dsp bb" style="font-size:17px">'+esc(T(f.cat))+'</h3><button class="btn-i" data-action="ui.closeDrawer">'+ic('i-x','')+'</button></div></div>';
+ th+='<div class="pad scroll" style="flex:1;overflow-y:auto"><div class="grid c2" style="gap:10px">'+kv('Date',fD(f.date))+kv('Type',bdg(f.type))+kv('Category',esc(T(f.cat)))+kv('Amount',K(f.amount)+' IRT')+kv('Payment method',esc(T(f.method||'Bank')))+kv('Reference',esc(f.ref||'\u2014'))+kv('Status',bdg(f.status))+'</div></div>';
+ if(w){
+  th+='<div class="pad row jend gap2" style="border-top:1px solid var(--border);background:var(--surface-2);flex:none"><button class="btn btn-p btn-sm" data-action="txn.edit" data-id="'+f.id+'">'+ic('i-edit','')+' '+esc(T('Edit transaction'))+'</button></div>';
+ }
+ openDrawer(th,false);S.drawer={type:'txn',id:f.id};};
+
 A['invoice.new']=function(){if(need('finance.w'))invoiceForm();};
-A['invoice.view']=function(el){var v=inv(el.dataset.id);if(!v)return;openDrawer('<div class="pad"><div class="row jb"><h3 class="dsp bb">'+esc(v.no)+'</h3><button class="btn-i" data-action="ui.closeDrawer">'+ic('i-x','')+'</button></div><div class="mt3">'+kv('Member',esc(mname(v.memberId)))+'</div><div class="mt3">'+kv('Total',K(invTotal(v)))+'</div></div>',false);};
+A['invoice.view']=function(el){var v=inv(el.dataset.id);if(!v)return;var w=can('finance.w');
+ var ih='<div class="pad" style="border-bottom:1px solid var(--border);flex:none"><div class="row jb gap3"><div><h3 class="dsp bb" style="font-size:17px">'+esc(v.no)+'</h3></div><div class="row gap1">'+bdg(v.status)+'<button class="btn-i" data-action="ui.closeDrawer">'+ic('i-x','')+'</button></div></div></div>';
+ ih+='<div class="pad scroll" style="flex:1;overflow-y:auto"><div class="grid c2" style="gap:10px">'+kv('Member',esc(mname(v.memberId)))+kv('Issued date',fD(v.issued))+kv('Due date',fD(v.due))+kv('Total amount',K(invTotal(v))+' IRT')+'</div>';
+ ih+='<h4 class="dsp bb mt4 mb2" style="font-size:14px">'+esc(T('Invoice items'))+'</h4>'+tw('<table class="tb"><thead><tr><th>'+esc(T('Description'))+'</th><th>'+esc(T('Qty'))+'</th><th>'+esc(T('Price'))+'</th><th>'+esc(T('Total'))+'</th></tr></thead><tbody>'+v.items.map(function(it){return '<tr><td class="b i13">'+esc(T(it.d))+'</td><td>'+n(it.q)+'</td><td>'+K(it.p)+'</td><td class="b i13">'+K(it.q*it.p)+'</td></tr>';}).join('')+'</tbody></table>');
+ ih+='</div>';
+ ih+='<div class="pad row jend gap2" style="border-top:1px solid var(--border);background:var(--surface-2);flex:none">';
+ if(w&&v.status!=='Paid')ih+='<button class="btn btn-s btn-sm" data-action="invoice.pay" data-id="'+v.id+'">'+ic('i-check','')+' '+esc(T('Mark paid'))+'</button>';
+ ih+='<button class="btn btn-p btn-sm" data-action="invoice.print" data-id="'+v.id+'">'+ic('i-print','')+' '+esc(T('Print invoice'))+'</button></div>';
+ openDrawer(ih,false);S.drawer={type:'invoice',id:v.id};};
 A['invoice.print']=function(el){var v=inv(el.dataset.id);if(!v)return;printDoc(T('Invoice')+' '+v.no,'<table><tr><td>'+T('Member')+'</td><td>'+esc(mname(v.memberId))+'</td></tr><tr><td>'+T('Issued')+'</td><td>'+fD(v.issued)+'</td></tr><tr><td>'+T('Due')+'</td><td>'+fD(v.due)+'</td></tr><tr><td>'+T('Total')+'</td><td>'+K(invTotal(v))+' IRT</td></tr></table>');};
 A['invoice.pay']=function(el){if(!need('finance.w'))return;var v=inv(el.dataset.id);if(!v)return;v.status='Paid';logA('Marked invoice paid',v.id,'finance','b-ok');save();refresh();};
 A['report.page']=function(el){S.ui.reports.page=+el.dataset.p;render();};
@@ -352,15 +380,23 @@ A['notif.open']=function(el){var x=DB.notifs.filter(function(n){return n.id===el
 A['audit.page']=function(el){S.ui.audit.page=+el.dataset.p;render();};
 A['audit.export']=function(){csv('audit.csv',['Time','Action','Actor','Module'],DB.audit.map(function(a){return [a.at,a.action,a.actor,a.module];}));};
 A['audit.clear']=function(){confirmDlg({title:T('Clear audit log?'),ok:T('Clear'),onOk:function(){DB.audit=[];save();refresh();}});};
+A['ui.lang']=function(el){if(I)I.setLang(el.dataset.v);go(S.page);};
+A['ui.closeAll']=function(){closeAll();};
 A['set.lang']=function(el){if(I)I.setLang(el.dataset.v);go(S.page);};
-A['set.theme']=function(el){document.documentElement.classList.toggle('dark',el.dataset.v==='dark');DB.prefs.theme=el.dataset.v;save();};
+A['set.theme']=function(el){document.documentElement.classList.toggle('dark',el.dataset.v==='dark');DB.prefs.theme=el.dataset.v;save();var ti=$('#thIcon');if(ti)ti.innerHTML='<use href="#'+(DB.prefs.theme==='dark'?'i-sun':'i-moon')+'"/>';};
 A['set.backup']=function(){backup();};
 A['set.reset']=function(){confirmDlg({title:T('Reset demo data?'),body:T('All changes will be lost.'),ok:T('Reset'),onOk:function(){resetDB();refresh();toast(T('Demo data reset.'));}});};
 A['portal.tab']=function(el){S.ui.portal.tab=el.dataset.v;render();};
 A['portal.payAll']=function(){var m=member(SES.memberId);DB.invoices.forEach(function(v){if(v.memberId===m.id&&v.status!=='Paid')v.status='Paid';});logA('Paid all dues',m.id,'finance','b-ok');save();refresh();toast(T('All dues paid.'));};
 A['portal.payEntry']=function(el){var e=ev(el.dataset.e);if(!e)return;(e.entries||[]).forEach(function(en){if(en.horseId===el.dataset.h)en.paid=true;});save();refresh();};
-A['ui.prof']=function(){var su=$('#sideUser'),sp=$('#sideProf');if(!su||!sp)return;var open=su.classList.toggle('expanded');sp.style.display=open?'block':'none';if(open){var m=SES.memberId?member(SES.memberId):null;sp.innerHTML='<div class="sp-body"><div class="sp-row"><span>'+esc(T('Role'))+'</span><b>'+esc(T(ROLE_LABEL[SES.role]))+'</b></div>'+'<div class="sp-row"><span>'+esc(T('Phone'))+'</span><b dir="ltr">'+esc(SES.phone||'—')+'</b></div>'+'<div class="sp-row"><span>'+esc(T('Email'))+'</span><b dir="ltr">'+esc(SES.email||'—')+'</b></div>'+(m?'<div class="sp-row"><span>'+esc(T('Licence'))+'</span><b>'+esc(m.licence)+'</b></div>':'')+'</div>';}}
-A['ui.prof']=function(){var su=$('#sideUser'),sp=$('#sideProf');if(!su||!sp)return;var open=su.classList.toggle('expanded');sp.style.display=open?'block':'none';if(open){var m=SES.memberId?member(SES.memberId):null;sp.innerHTML='<div class="sp-body"><div class="sp-row"><span>'+esc(T('Role'))+'</span><b>'+esc(T(ROLE_LABEL[SES.role]))+'</b></div>'+'<div class="sp-row"><span>'+esc(T('Phone'))+'</span><b dir="ltr">'+esc(SES.phone||'—')+'</b></div>'+'<div class="sp-row"><span>'+esc(T('Email'))+'</span><b dir="ltr">'+esc(SES.email||'—')+'</b></div>'+(m?'<div class="sp-row"><span>'+esc(T('Licence'))+'</span><b>'+esc(m.licence)+'</b></div>':'')+'</div>';}}
+A['ui.prof']=function(){var su=$('#sideUser'),sp=$('#sideProf');if(!su||!sp)return;var open=su.classList.toggle('expanded');sp.style.display=open?'block':'none';if(open){var m=SES.memberId?member(SES.memberId):null;sp.innerHTML='<div class="sp-body"><div class="sp-row"><span>'+esc(T('Role'))+'</span><b>'+esc(T(ROLE_LABEL[SES.role]))+'</b></div>'+'<div class="sp-row"><span>'+esc(T('Phone'))+'</span><b dir="ltr">'+esc(SES.phone||'—')+'</b></div>'+'<div class="sp-row"><span>'+esc(T('Email'))+'</span><b dir="ltr">'+esc(SES.email||'—')+'</b></div>'+(m?'<div class="sp-row"><span>'+esc(T('Licence'))+'</span><b>'+esc(m.licence)+'</b></div>':'')+'</div>';}};
+A['login.peek']=function(){var lp=$('#lpass');if(!lp)return;lp.type=lp.type==='password'?'text':'password';};
+A['login.forgot']=function(){openModal('<div class="pad"><h3 class="dsp bb" style="font-size:17px">'+esc(T('Password reset'))+'</h3><p class="mut i13 mt2" style="line-height:1.6">'+esc(T('For this demo build, please use one of the four pre-configured demonstration accounts on the sign-in screen.'))+'</p><div class="row jend mt4"><button class="btn btn-p" data-action="ui.closeModal">'+esc(T('Close'))+'</button></div></div>','420px');};
+A['ui.help']=function(){openModal('<div class="pad" style="border-bottom:1px solid var(--border)"><div class="row jb"><h3 class="dsp bb" style="font-size:17px">'+esc(T('Help & Keyboard Shortcuts'))+'</h3><button class="btn-i" data-action="ui.closeModal">'+ic('i-x','')+'</button></div></div><div class="pad scroll" style="max-height:60vh"><div class="grid c2" style="gap:10px">'+kv('Ctrl + K / Quick Find',esc(T('Open command palette')))+kv('Esc',esc(T('Close modal / overlay')))+kv('Search inputs',esc(T('Filter records instantly')))+kv('Navigation',esc(T('Role-based access control')))+'</div><h4 class="dsp bb mt4 mb2" style="font-size:14px">'+esc(T('Role Access Summary'))+'</h4><div class="i12 mut" style="line-height:1.6"><b>Administrator / Manager:</b> Full access to studbook, members, events, finance, reports, audit, and settings approval queue.<br/><b>Veterinarian:</b> Health logs, horses, competition schedule.<br/><b>Rider:</b> Member portal, self-management with manager approvals.</div></div>','580px');};
+A['ui.palette']=function(){var w=$('#palW'),ov=$('#palOv'),inp=$('#palIn');if(!w||!ov)return;w.classList.add('on');ov.classList.add('on');if(inp){inp.value='';inp.focus();renderPalette('');}};
+A['ui.palClose']=function(){var w=$('#palW'),ov=$('#palOv');if(w)w.classList.remove('on');if(ov)ov.classList.remove('on');};
+A['req.approve']=function(el){var id=el.dataset.id;var req=(DB.requests||[]).filter(function(r){return r.id===id;})[0];if(!req)return;req.status='Approved';logA('Approved request '+req.label,SES.name,'settings','b-ok');save();refresh();toast(T('Request approved.'));};
+A['req.reject']=function(el){var id=el.dataset.id;var req=(DB.requests||[]).filter(function(r){return r.id===id;})[0];if(!req)return;req.status='Rejected';logA('Rejected request '+req.label,SES.name,'settings','b-bad');save();refresh();toast(T('Request rejected.'));};
 A['auth.logout']=function(){confirmDlg({title:T('Sign out?'),ok:T('Sign out'),onOk:doLogout});};
 function pushReq(kind,ref,label){DB.requests=DB.requests||[];DB.requests.push({id:'RQ-'+(DB.counters.req=(DB.counters.req||1)+1),kind:kind,ref:ref,label:label,ownerId:SES.memberId,status:'Pending',at:nowISO()});DB.notifs.unshift({id:'N-'+Date.now(),text:T('New approval request')+': '+label,date:nowISO(),read:false,go:'settings',tone:'b-warn'});}
 /* --- FORMS --- */
@@ -406,13 +442,62 @@ function invoiceForm(){openForm({title:T('New invoice'),fields:[
   {name:'desc',label:'Description',req:1},{name:'amount',label:'Amount (IRT)',type:'number',req:1}
 ],submit:function(v){var id='INV-'+(DB.counters.inv=(DB.counters.inv||5000)+1);DB.invoices.push({id:id,no:'INV-1405-'+String(100+(DB.counters.inv%900)),memberId:v.memberId,issued:v.issued,due:v.due,status:'Unpaid',items:[{d:v.desc,q:1,p:+v.amount}]});logA('Issued invoice',id,'finance','b-ok');save();refresh();toast(T('Invoice created.'));}});}
 function horseDrawer(id){var h=horse(id);if(!h)return;var w=can('horse.w');var recs=DB.health.filter(function(r){return r.horseId===h.id;});
- var hh='<div class="pad" style="border-bottom:1px solid var(--border)"><div class="row jb gap3"><div class="row gap3">'+av(h.name,'m',h.id)+'<div><h3 class="dsp bb" style="font-size:17px">'+esc(h.name)+'</h3><div class="mut i12">'+esc(T(h.breed))+' \u00b7 '+esc(T(h.sex))+'</div></div></div><div class="row gap1">'+bdg(h.status)+'<button class="btn-i" data-action="ui.closeDrawer">'+ic('i-x','')+'</button></div></div></div>';
- hh+='<div class="pad"><div class="grid c2" style="gap:10px">'+kv('Microchip',esc(h.chip))+kv('Age',n(h.age))+kv('Owner',esc(mname(h.ownerId)))+kv('Stable',esc(h.stable))+kv('Valuation',K(h.value)+' IRT')+kv('DNA',T(h.dna))+'</div>';
- hh+='<h4 class="dsp bb mt4 mb2" style="font-size:14px">'+esc(T('Health records'))+'</h4>'+(recs.length?recs.map(function(r){return rl('<div><div class="b i13">'+esc(T(r.type))+'</div><div class="mut i11">'+fD(r.date)+'</div></div>',bdg(r.status));}).join(''):'<div class="mut i12">'+esc(T('No records'))+'</div>');
- if(w)hh+='<div class="row gap2 mt4">'+btnI('i-edit',T('Edit'),'horse.edit','data-id="'+h.id+'"')+btnI('i-print',T('Print passport'),'horse.passport','data-id="'+h.id+'"')+'</div>';
- hh+='</div>';openDrawer(hh,false);S.drawer={type:'horse',id:id};}
-function bellPop(){var u=DB.notifs.filter(function(x){return !x.read;});var bp=$('#bellPop');if(!bp)return;bp.innerHTML='<div class="row jb pad-s" style="border-bottom:1px solid var(--border)"><span class="b i13">'+esc(T('Notifications centre'))+'</span><button class="btn-i" data-action="ui.bellClose">'+ic('i-x','')+'</button></div>'+(u.length?u.slice(0,6).map(function(x){return '<div class="pad-s i12" style="border-bottom:1px solid var(--border)">'+esc(x.text)+'<div class="mut i11 mt1">'+fDT(x.date)+'</div></div>';}).join(''):'<div class="pad-s mut i12">'+esc(T('No notifications'))+'</div>');bp.classList.add('on');}
+ var evs=[];DB.events.forEach(function(e){(e.entries||[]).forEach(function(en){if(en.horseId===h.id)evs.push({e:e,en:en});});});
+ var hh='<div class="pad" style="border-bottom:1px solid var(--border);flex:none"><div class="row jb gap3"><div class="row gap3">'+av(h.name,'m',h.id)+'<div><h3 class="dsp bb" style="font-size:17px">'+esc(h.name)+'</h3><div class="mut i12">'+esc(T(h.breed))+' \u00b7 '+esc(T(h.sex))+' \u00b7 '+esc(h.color)+'</div></div></div><div class="row gap1">'+bdg(h.status)+'<button class="btn-i" data-action="ui.closeDrawer">'+ic('i-x','')+'</button></div></div></div>';
+ hh+='<div class="pad scroll" style="flex:1;overflow-y:auto"><div class="grid c2" style="gap:10px">'+kv('Microchip',esc(h.chip))+kv('Age',n(h.age)+' ('+esc(h.yob)+')')+kv('Owner',esc(mname(h.ownerId)))+kv('Stable',esc(h.stable))+kv('Sire',esc(h.sire||'\u2014'))+kv('Dam',esc(h.dam||'\u2014'))+kv('Discipline',esc(T(h.discipline)))+kv('Valuation',K(h.value)+' IRT')+kv('DNA verification',bdg(h.dna))+kv('Region',esc(h.region))+'</div>';
+ hh+='<h4 class="dsp bb mt4 mb2" style="font-size:14px">'+esc(T('Competition history'))+'</h4>'+(evs.length?evs.map(function(x){return rl('<div><div class="b i13">'+esc(x.e.name)+'</div><div class="mut i11">'+fD(x.e.date)+' \u00b7 '+esc(T(x.e.type))+'</div></div>',x.en.place?'<span class="badge b-warn">'+n(x.en.place)+'</span>':bdg(x.en.paid?'Paid':'Unpaid'));}).join(''):'<div class="mut i12">'+esc(T('No competition entries.'))+'</div>');
+ hh+='<h4 class="dsp bb mt4 mb2" style="font-size:14px">'+esc(T('Health & Veterinary records'))+'</h4>'+(recs.length?recs.map(function(r){return rl('<div><div class="b i13">'+esc(T(r.type))+'</div><div class="mut i11">'+fD(r.date)+' \u00b7 '+esc(mname(r.vetId))+'</div></div>',bdg(r.status));}).join(''):'<div class="mut i12">'+esc(T('No health records.'))+'</div>');
+ hh+='</div>';
+ if(w||SES.role==='rider'){
+  hh+='<div class="pad row jend gap2" style="border-top:1px solid var(--border);background:var(--surface-2);flex:none">';
+  if(w||(SES.role==='rider'&&h.ownerId===SES.memberId))hh+='<button class="btn btn-g btn-sm" data-action="horse.edit" data-id="'+h.id+'">'+ic('i-edit','')+' '+esc(T('Edit'))+'</button>';
+  if(w)hh+='<button class="btn btn-p btn-sm" data-action="horse.passport" data-id="'+h.id+'">'+ic('i-print','')+' '+esc(T('Print passport'))+'</button>';
+  hh+='</div>';
+ }
+ openDrawer(hh,false);S.drawer={type:'horse',id:id};}
+function bellPop(){var u=DB.notifs.filter(function(x){return !x.read;});var bp=$('#bellPop');if(!bp)return;bp.innerHTML='<div class="row jb pad-s" style="border-bottom:1px solid var(--border)"><span class="b i13">'+esc(T('Notifications centre'))+'</span><button class="btn-i" data-action="ui.bellClose">'+ic('i-x','')+'</button></div>'+(u.length?u.slice(0,6).map(function(x){return '<div class="pad-s i12" style="border-bottom:1px solid var(--border);cursor:pointer" data-action="notif.open" data-id="'+x.id+'">'+esc(x.text)+'<div class="mut i11 mt1">'+fDT(x.date)+'</div></div>';}).join(''):'<div class="pad-s mut i12">'+esc(T('No notifications'))+'</div>');bp.classList.toggle('on');}
 function closeBell(){var bp=$('#bellPop');if(bp)bp.classList.remove('on');}
+
+/* --- SEARCH & PALETTE --- */
+function searchGlobal(q){
+  q=String(q||'').toLowerCase().trim();if(!q)return[];
+  var res=[];
+  DB.horses.forEach(function(h){if((h.name+' '+h.breed+' '+h.chip).toLowerCase().indexOf(q)>=0)res.push({type:T('Horse'),title:h.name,sub:T(h.breed)+' · '+h.chip,go:'horses',id:h.id});});
+  DB.members.forEach(function(m){if((m.name+' '+m.licence+' '+m.phone).toLowerCase().indexOf(q)>=0)res.push({type:T('Member'),title:m.name,sub:T(m.role)+' · '+m.region,go:'members',id:m.id});});
+  DB.events.forEach(function(e){if((e.name+' '+e.venue).toLowerCase().indexOf(q)>=0)res.push({type:T('Competition'),title:e.name,sub:T(e.type)+' · '+fD(e.date),go:'events',id:e.id});});
+  DB.invoices.forEach(function(v){if((v.no+' '+mname(v.memberId)).toLowerCase().indexOf(q)>=0)res.push({type:T('Invoice'),title:v.no,sub:mname(v.memberId)+' · '+K(invTotal(v))+' IRT',go:'finance',id:v.id});});
+  return res.slice(0,10);
+}
+
+function renderGlobalSearch(q){
+  var pop=$('#gpop');if(!pop)return;
+  var items=searchGlobal(q);
+  if(!q){pop.classList.remove('on');return;}
+  if(!items.length){pop.innerHTML='<div class="pad-s mut i12 text-center">'+esc(T('No results found'))+'</div>';pop.classList.add('on');return;}
+  pop.innerHTML=items.map(function(it){
+    return '<div class="pad-s row gap3" data-go="'+it.go+'" data-id="'+it.id+'" style="cursor:pointer;border-bottom:1px solid var(--border)"><span class="badge b-info">'+esc(it.type)+'</span><div class="g1"><div class="b i13">'+esc(it.title)+'</div><div class="mut i11">'+esc(it.sub)+'</div></div></div>';
+  }).join('');
+  pop.classList.add('on');
+}
+
+function renderPalette(q){
+  q=String(q||'').toLowerCase().trim();
+  var res=$('#palRes');if(!res)return;
+  var items=[];
+  NAV[SES.role].forEach(function(pg){
+    var p=PAGES[pg];
+    if(!q||p.label.toLowerCase().indexOf(q)>=0||pg.indexOf(q)>=0)items.push({type:T('Navigation'),title:T(p.label),act:'nav',arg:pg,icon:p.icon});
+  });
+  if(can('horse.w'))items.push({type:T('Action'),title:T('Register horse'),act:'horse.new',icon:'i-plus'});
+  if(can('member.w'))items.push({type:T('Action'),title:T('Add member'),act:'member.new',icon:'i-plus'});
+  if(can('event.w'))items.push({type:T('Action'),title:T('Add event'),act:'event.new',icon:'i-plus'});
+  searchGlobal(q).forEach(function(it){
+    items.push({type:it.type,title:it.title,sub:it.sub,act:'viewRec',go:it.go,id:it.id,icon:'i-eye'});
+  });
+  res.innerHTML=items.slice(0,12).map(function(it){
+    return '<div class="pad-s row gap3 palette-item" data-act="'+(it.act||'')+'" data-arg="'+(it.arg||'')+'" data-go="'+(it.go||'')+'" data-id="'+(it.id||'')+'" style="cursor:pointer;border-bottom:1px solid var(--border);border-radius:8px"><span class="badge b-mut">'+ic(it.icon||'i-search','')+' '+esc(it.type)+'</span><div class="g1"><div class="b i13">'+esc(it.title)+'</div>'+(it.sub?'<div class="mut i11">'+esc(it.sub)+'</div>':'')+'</div></div>';
+  }).join('');
+}
 /* --- BOOT --- */
 function applyPrefs(){if(!DB.prefs)DB.prefs={theme:'light'};if(DB.prefs.theme==='dark')document.documentElement.classList.add('dark');}
 function doLogin(u,p){var rec=USERS.filter(function(x){return x.u===u;})[0];if(!rec||rec.p!==p){toast(T('Sign-in failed \u2014 invalid username or password.'),'e');return;}SES={u:rec.u,name:rec.name,title:rec.title,role:rec.role,email:rec.email,phone:rec.phone,memberId:rec.memberId||''};saveSes();logA('Signed in','session','auth','b-info');var lg=$('#login'),sh=$('#shell');if(lg)lg.classList.add('off');if(sh)sh.classList.add('on');applyPrefs();S.page=NAV[SES.role][0];renderNav();render();toast(T('Signed in')+' \u00b7 '+esc(rec.name));}
@@ -439,9 +524,58 @@ function boot(){load();loadSes();applyPrefs();renderAccounts();renderAccounts();
    fq:['finance','q'],ftype:['finance','type'],fcat:['finance','cat'],fiq:['finance','iq'],fistatus:['finance','istatus'],
    aq:['audit','q'],amod:['audit','module'],rmodule:['reports','module'],rregion:['reports','region'],rstatus:['reports','status'],rmetric:['reports','metric']};
   if(map[key]){var s2=S.ui[map[key][0]];s2[map[key][1]]=f2.value;if(s2.page)s2.page=1;render();}});
- document.addEventListener('input',function(e){var f3=e.target.closest('[data-filter]');if(!f3||f3.tagName==='SELECT')return;var key=f3.dataset.filter;
+ document.addEventListener('input',function(e){
+  if(e.target.id==='gsearch'){renderGlobalSearch(e.target.value);return;}
+  if(e.target.id==='palIn'){renderPalette(e.target.value);return;}
+  var f3=e.target.closest('[data-filter]');if(!f3||f3.tagName==='SELECT')return;var key=f3.dataset.filter;
   var qmap={hq:['horses','q'],mq:['members','q'],eq:['events','q'],vq:['health','q'],fq:['finance','q'],fiq:['finance','iq'],aq:['audit','q']};
   if(qmap[key]){var s3=S.ui[qmap[key][0]];s3[qmap[key][1]]=f3.value;if(s3.page)s3.page=1;clearTimeout(window.__t);window.__t=setTimeout(render,220);}});
+
+ document.addEventListener('submit',function(e){
+  if(e.target.id==='orgF'){
+    e.preventDefault();
+    var nm=(e.target.querySelector('[name="name"]')||{}).value||'';
+    var ph=(e.target.querySelector('[name="phone"]')||{}).value||'';
+    if(nm)DB.prefs.org.name=nm;
+    if(ph)DB.prefs.org.phone=ph;
+    save();refresh();toast(T('Organisation profile updated.'));
+  }
+ });
+
+ document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();A['ui.palette']();}
+  if(e.key==='Escape'){closeAll();A['ui.palClose']();var pop=$('#gpop');if(pop)pop.classList.remove('on');}
+ });
+
+ document.addEventListener('click',function(e){
+  if(!e.target.closest('#bellPop')&&!e.target.closest('[data-action="ui.bell"]')){closeBell();}
+  if(!e.target.closest('#gpop')&&!e.target.closest('#gsearch')){var gp=$('#gpop');if(gp)gp.classList.remove('on');}
+  var gitem=e.target.closest('#gpop [data-go]');
+  if(gitem){
+    $('#gpop').classList.remove('on');
+    go(gitem.dataset.go);
+    var id=gitem.dataset.id;
+    if(gitem.dataset.go==='horses'&&id)horseDrawer(id);
+    else if(gitem.dataset.go==='members'&&id)A['member.view']({dataset:{id:id}});
+    else if(gitem.dataset.go==='events'&&id)eventDrawer(id);
+    return;
+  }
+  var pitem=e.target.closest('#palRes [data-act]');
+  if(pitem){
+    A['ui.palClose']();
+    var act=pitem.dataset.act, arg=pitem.dataset.arg, goPg=pitem.dataset.go, id=pitem.dataset.id;
+    if(act==='nav')go(arg);
+    else if(act==='horse.new')horseForm(null);
+    else if(act==='member.new')memberForm(null);
+    else if(act==='event.new')eventForm(null);
+    else if(act==='viewRec'&&goPg){
+      go(goPg);
+      if(goPg==='horses'&&id)horseDrawer(id);
+      else if(goPg==='members'&&id)A['member.view']({dataset:{id:id}});
+      else if(goPg==='events'&&id)eventDrawer(id);
+    }
+  }
+ });
  if(SES){var lg2=$('#login'),sh2=$('#shell');if(lg2)lg2.classList.add('off');if(sh2)sh2.classList.add('on');if(!allowed(S.page))S.page=NAV[SES.role][0];renderNav();render();}
  else{setTimeout(function(){var lu=$('#luser');if(lu)lu.focus();},200);}
 }
