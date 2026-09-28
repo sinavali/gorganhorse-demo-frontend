@@ -419,7 +419,8 @@ function doLogin(u,p){var rec=USERS.filter(function(x){return x.u===u;})[0];if(!
 function doLogout(){logA('Signed out','session','auth','b-mut');SES=null;saveSes();var lg=$('#login'),sh=$('#shell');if(sh)sh.classList.remove('on');if(lg)lg.classList.remove('off');closeDrawer();closeModal();}
 function sideOpen(){var s=$('#side');if(s)s.classList.add('open');}
 function sideClose(){var s=$('#side');if(s)s.classList.remove('open');}
-function boot(){load();loadSes();applyPrefs();if(window.GHF_PAGE&&SES&&NAV[SES.role]&&NAV[SES.role].indexOf(window.GHF_PAGE)>=0)S.page=window.GHF_PAGE;
+function renderAccounts(){var el=$('#laccounts');if(!el)return;el.innerHTML=USERS.map(function(u){return '<button type="button" class="row gap3" data-action="login.fill" data-u="'+esc(u.u)+'" style="width:100%;text-align:start;padding:9px 11px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer">'+av(u.name,'s',u.u)+'<div style="flex:1;min-width:0"><div class="b i13">'+esc(u.name)+'</div><div class="mut i11">'+esc(T(ROLE_LABEL[u.role]))+'</div></div><span class="kbd">'+esc(u.u)+'</span></button>';}).join('');}
+function boot(){load();loadSes();applyPrefs();renderAccounts();renderAccounts();if(window.GHF_PAGE&&SES&&NAV[SES.role]&&NAV[SES.role].indexOf(window.GHF_PAGE)>=0)S.page=window.GHF_PAGE;
  var f=$('#lform');if(f)f.addEventListener('submit',function(e){e.preventDefault();doLogin($('#luser').value.trim(),$('#lpass').value);});
  var acc=$('#laccounts');if(acc)acc.addEventListener('click',function(e){var b=e.target.closest('[data-action="login.fill"]');if(!b)return;var u=USERS.filter(function(x){return x.u===b.dataset.u;})[0];$('#luser').value=u.u;$('#lpass').value=u.p;toast(T('Credentials filled'));});
  document.addEventListener('click',function(e){var b=e.target.closest('[data-action]');if(!b)return;var act=b.dataset.action;
