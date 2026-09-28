@@ -1,0 +1,13 @@
+﻿import fs from 'node:fs';
+let s = fs.readFileSync('assets/app.js','utf8');
+const marker='i18n + UX HELPERS';
+const p1=s.indexOf(marker);
+const p2=s.indexOf(marker,p1+1);
+const c1=s.lastIndexOf('/*',p1);
+const c2=s.lastIndexOf('/*',p2);
+console.log('c1='+c1+' c2='+c2+' blockLen='+(c2-c1));
+console.log('blockA head: '+JSON.stringify(s.slice(c1,c1+60)));
+console.log('blockB head: '+JSON.stringify(s.slice(c2,c2+60)));
+s = s.slice(0,c1)+s.slice(c2);
+fs.writeFileSync('assets/app.js',s,'utf8');
+console.log('after removal helper count='+(s.split(marker).length-1));
