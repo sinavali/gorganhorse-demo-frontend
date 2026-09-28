@@ -1,26 +1,23 @@
-
-/* ============================================================
-   GHF print stylesheet - clean, legible, black & white
-   ============================================================ */
 @media print {
   :root { --ink:#000; --line:#9aa5a0; }
   html,body { background:#fff !important; color:#000 !important; font-size:11pt; }
-  #side,#top,#toasts,#ov,#drw,#mw,#palW,#palOv,#printHost,.no-print,
-  .btn,.btn-i,.chip,.pager,.ghf-dp,[data-action]{ display:none !important; }
+  #side,#top,#toasts,#ov,#drw,#mw,#palW,#palOv,.no-print,
+  .btn,.btn-i,.chip,.pager,.ghf-dp{ display:none !important; }
+  #printHost{ display:block !important; position:static !important; inset:auto !important; padding:0 !important; background:#fff !important; }
+  #printArea{ display:block !important; }
   #shell.on { display:block !important; }
   #main { margin:0 !important; padding:0 !important; }
   #content { padding:0 !important; max-width:100% !important; }
   .panel,.card,.stat { border:1px solid #000 !important; box-shadow:none !important; background:#fff !important; break-inside:avoid; }
   h1,h2,h3,.dsp { color:#000 !important; }
-  table.tb { width:100% !important; border-collapse:collapse !important; }
-  table.tb th, table.tb td { border:1px solid #000 !important; padding:5px 7px !important; color:#000 !important; background:#fff !important; }
-  table.tb thead th { background:#e8e8e8 !important; font-weight:700 !important; }
+  table.tb, #printArea table { width:100% !important; border-collapse:collapse !important; }
+  table.tb th, table.tb td, #printArea th, #printArea td { border:1px solid #000 !important; padding:5px 7px !important; color:#000 !important; background:#fff !important; }
+  table.tb thead th, #printArea thead th { background:#e8e8e8 !important; font-weight:700 !important; }
   .badge { border:1px solid #000 !important; color:#000 !important; background:#fff !important; }
   a { color:#000 !important; text-decoration:underline; }
   .mut { color:#333 !important; }
   svg { max-width:100%; }
 }
-/* on-screen print preview sheet */
 #printArea{ background:#fff; color:#111; }
 #printArea h1{ font-family:'Outfit','Vazirmatn',sans-serif; }
 #printArea table{ width:100%; border-collapse:collapse; font-size:12px; }
