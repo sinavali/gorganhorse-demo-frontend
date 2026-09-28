@@ -1,0 +1,156 @@
+/* ============================================================================
+   Gorgan Horse Federation - application engine (rebuilt, complete)
+   Default fa-IR (RTL, Jalali) + en-US. Requires assets/i18n.js.
+   ============================================================================ */
+(function(){
+'use strict';
+var I=window.I18N||null;
+function T(k){return I?I.t(k):k;}
+function RTL(){return I?I.isRTL():false;}
+function fD(s){return I?I.fmtDate(s):s;}
+function fDT(s){return I?I.fmtDateTime(s):s;}
+function faNum(v){return I?I.num(v):String(v);}
+var $=function(s,r){return (r||document).querySelector(s);};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
+function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+function n(v){return faNum(Math.round(Number(v)||0));}
+function K(v){v=Number(v)||0;return v>=1e9?(v/1e9).toFixed(2)+'B':v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(1)+'K':faNum(v);}
+function IRT(v){return n(v)+' IRT';}
+function ini(s){return String(s||'').trim().split(/\s+/).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();}
+function ic(nm,c){return '<svg class="ic'+(c?' '+c:'')+'"><use href="#'+nm+'"/></svg>';}
+function cv(x){return getComputedStyle(document.documentElement).getPropertyValue(x).trim();}
+function uid(p){return p+'-'+Math.random().toString(36).slice(2,7).toUpperCase();}
+function today(){return I?I.today():new Date().toISOString().slice(0,10);}
+function nowISO(){return new Date().toISOString().slice(0,16).replace('T',' ');}
+function daysTo(d){return Math.round((new Date(d)-new Date(today()))/86400000);}
+function rel(d){var x=daysTo(d);if(x===0)return T('Today');if(x===1)return T('Tomorrow');if(x===-1)return T('Yesterday');return (x>0?'in '+x+'d':Math.abs(x)+'d');}
+function sum(a,f){return a.reduce(function(t,x){return t+(f?f(x):x);},0);}
+function by(k,d){return function(a,b){var x=a[k],y=b[k];if(typeof x==='number'&&typeof y==='number')return (x-y)*(d||1);return String(x).localeCompare(String(y))*(d||1);};}
+function uniq(a){return a.filter(function(v,i){return a.indexOf(v)===i;});}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function tip(t,p){return ' data-tip="'+esc(t)+'"'+(p?' data-tip-pos="'+p+'"':'');}
+function qm(t){return '<span class="qmark"'+tip(t)+'></span>';}
+function btnI(icon,label,act,ex,cls){return '<button class="btn-i'+(cls?' '+cls:'')+'" data-action="'+act+'"'+(ex||'')+tip(label)+'>'+ic(icon,'')+'</button>';}
+function chip(t,on,a,v){return '<button class="chip'+(on?' on':'')+'" data-action="'+a+'" data-v="'+esc(v)+'">'+esc(t)+'</button>';}
+
+/* ------------------------------- SEED DATA ------------------------------- */
+var BREEDS=['Akhal-Teke','Turkmen','Arabian','Thoroughbred','Caspian','Kurdish'];
+var SEXES=['Stallion','Mare','Gelding','Filly','Colt'];
+var DISC=['Beauty','Jumping','Racing','Endurance','Dressage'];
+var HSTAT=['Active','In Training','For Sale','Retired','Quarantine'];
+var MTIERS=['Gold','Silver','Bronze'];
+var MROLES=['Breeder','Trainer','Owner','Veterinarian'];
+var REGIONS=['Gorgan','Gonbad-e Kavus','Bandar Torkaman','Akkaleh','Kalaleh','Aliabad','Aqqala'];
+var VETT=['Vaccination','Dental Check','General Checkup','Deworming','Blood Test','X-Ray','Inspection'];
+var RECS=['Completed','Scheduled','Due Soon','Overdue','Quarantine'];
+var ESTAT=['Draft','Published','Open for Entry','Completed','Cancelled'];
+var ETYPES=['Show Jumping','Racing','Endurance','Dressage','Breed Show'];
+var CATS=['Registration','Membership','Sponsorship','Prize Fund','Veterinary','Facilities','Officials','Permits','Insurance','Entry Fees'];
+var USERS=[
+ {u:'admin',p:'demo1234',name:'Sina Hormozi',title:'Chief Registry Officer',role:'admin',email:'s.hormozi@gorganhf.ir',phone:'+98 17 3224 0001'},
+ {u:'manager',p:'demo1234',name:'Maryam Ebrahimi',title:'Registry Manager',role:'manager',email:'m.ebrahimi@gorganhf.ir',phone:'+98 17 3224 0014'},
+ {u:'vet',p:'demo1234',name:'Dr. Amir Tavakoli',title:'Federation Veterinarian',role:'vet',phone:'+98 913 118 5562',memberId:'M-203'},
+ {u:'rider',p:'demo1234',name:'Reza Aghamiri',title:'Licensed Rider',role:'rider',phone:'+98 911 320 4417',memberId:'M-201'}
+];
+var ROLE_LABEL={admin:'Administrator',manager:'Manager',vet:'Veterinarian',rider:'Rider'};
+function seed(){
+ var M=[
+  ['M-201','Reza Aghamiri','Breeder','Gold','Gonbad-e Kavus','+98 911 320 4417','r.aghamiri@turkmenstud.ir','BR-1042','2023-07-03','Active',42000000,'2026-12-30','Turkmen Stud'],
+  ['M-202','Niloofar Sadeghi','Trainer','Silver','Gorgan','+98 912 774 0091','n.sadeghi@grc.ir','TR-2210','2024-11-22','Active',26000000,'2026-11-14','Gorgan Riding Club'],
+  ['M-203','Dr. Amir Tavakoli','Veterinarian','Gold','Gorgan','+98 913 118 5562','','VT-0311','2021-05-11','Active',38000000,'2027-01-20','Veterinary Unit'],
+  ['M-204','Mahmoud Rahimi','Breeder','Gold','Akkaleh','+98 911 455 8823','','BR-0987','2020-01-25','Active',40000000,'2026-10-02','Akkala Farm'],
+  ['M-205','Sara Kavian','Owner','Silver','Bandar Torkaman','+98 935 660 1174','','OW-3320','2026-09-09','Active',22000000,'2026-09-11','Caspian Stables'],
+  ['M-206','Dr. Leila Norouzi','Veterinarian','Silver','Gonbad-e Kavus','+98 901 220 7733','','VT-0455','2025-05-30','Active',28000000,'2026-12-01','Gonbad Clinic'],
+  ['M-207','Behnam Shirdel','Trainer','Bronze','Gorgan','+98 919 004 5512','','TR-2455','2027-02-16','Suspended',0,'2024-06-30','Gorgan Riding Club'],
+  ['M-208','Farzad Mohammadi','Breeder','Bronze','Kalaleh','+98 936 771 2200','','BR-1580','2027-04-03','Pending',18000000,'','Kalaleh Stud'],
+  ['M-209','Hengameh Rostami','Owner','Gold','Gorgan','+98 912 300 6645','','JD-0071','2019-08-21','Active',34000000,'2027-02-15','Officials Pool'],
+  ['M-210','Kaveh Yamchi','Trainer','Silver','Gonbad-e Kavus','+98 930 118 4477','','JD-0102','2023-09-30','Active',29000000,'2026-12-20','Officials Pool'],
+  ['M-211','Parisa Ghorbani','Owner','Silver','Aqqala','+98 933 552 8891','','OW-3401','2026-04-12','Active',31000000,'2026-08-01','Aqqala Stud'],
+  ['M-212','Yousef Kordi','Breeder','Gold','Kalaleh','+98 901 776 3344','','BR-1101','2022-02-09','Active',45000000,'2027-03-18','Kordi Ranch'],
+  ['M-213','Atefeh Rahmani','Trainer','Bronze','Gorgan','+98 936 220 1188','','TR-2488','2026-06-15','Active',15000000,'2026-09-05','Gorgan Riding Club'],
+  ['M-214','Iman Fallah','Farrier','Bronze','Bandar Torkaman','+98 910 883 2211','','FR-0033','2025-03-03','Active',9000000,'2026-08-08','Farrier Guild']
+ ].map(function(r){return{id:r[0],name:r[1],role:r[2],tier:r[3],region:r[4],phone:r[5],email:r[6],licence:r[7],joined:r[8],status:r[9],dues:r[10],duesUntil:r[11],org:r[12]};});
+ var HN=['Baran','Tara','Omid','Laleh','Kaveh','Shirin','Arash','Nika','Sorkh','Noor','Dara','Arezoo','Taranom','Kayhan','Mahsa','Zar','Sepid','Samira'];
+ var H=[];
+ for(var i=0;i<24;i++){
+  var m=M[i%M.length];
+  H.push({id:'H-'+String(1001+i),name:HN[i%HN.length]+' '+(i<12?'I':'II'),breed:BREEDS[i%BREEDS.length],sex:SEXES[i%SEXES.length],color:['Bay','Chestnut','Black','Grey'][i%4],yob:2015+(i%10),age:2026-(2015+(i%10)),discipline:DISC[i%DISC.length],status:HSTAT[i%HSTAT.length],ownerId:m.id,stable:m.org,value:300000000+((i*137)%900)*1000000,dna:['Verified','Pending'][i%3===0?1:0],insured:i%2===0,region:m.region,chip:'IR-CHIP-'+String(48211+i),sire:'Sire '+(i%5+1),dam:'Dam '+(i%5+1),registered:'2021-0'+((i%9)+1)+'-1'+((i%9))});
+ }
+ var E=[];
+ var EN=['Spring Show Jumping','Caspian Endurance Cup','Gorgan Breed Show','Autumn Racing Meet','Dressage Gala','Turkmen Heritage Trophy'];
+ for(var j=0;j<6;j++){
+  E.push({id:'EV-'+(201+j),name:EN[j],type:ETYPES[j%ETYPES.length],date:'2026-'+String(10+ (j%3))+'-'+String(10+j),venue:REGIONS[j%REGIONS.length]+' Arena',status:ESTAT[(j%4)],fee:1500000+j*250000,cap:60+j*8,entries:[],judge:mname(M,(j%M.length)),prize:50000000+j*10000000});
+ }
+ function mname(list,id){return id;}
+ var HE=[];
+ for(var k=0;k<22;k++){HE.push({id:'V-'+String(3001+k),horseId:H[k%H.length].id,type:VETT[k%VETT.length],date:'2026-0'+((k%9)+1)+'-0'+(k%9+1),next:'2026-1'+((k%2))+'-1'+(k%9),vetId:M[2].id,status:RECS[k%RECS.length],notes:''});}
+ var F=[];
+ for(var q=0;q<28;q++){F.push({id:'T-'+String(4001+q),date:'2026-0'+((q%9)+1)+'-1'+(q%9),type:q%3===0?'Expense':'Income',cat:CATS[q%CATS.length],amount:2000000+((q*97)%80)*500000,method:['Bank','Cash','Cheque'][q%3],status:q%4===0?'Settled':'Pending',ref:'RC-'+String(1000+q)});}
+ var IV=[];
+ for(var r2=0;r2<10;r2++){IV.push({id:'INV-'+String(5001+r2),no:'INV-1405-'+String(101+r2),memberId:M[r2%M.length].id,issued:'2026-0'+((r2%9)+1)+'-05',due:'2026-1'+((r2%2))+'-05',status:['Paid','Unpaid','Overdue'][r2%3],items:[{d:'Membership',q:1,p:2500000}]});}
+ var NO=[];
+ for(var s=0;s<8;s++){NO.push({id:'N-'+String(9001+s),text:['New licence application','Vaccination overdue','Payment received','Event entry submitted','Horse transfer pending','DNA result ready'][s%6],date:'2026-0'+((s%9)+1)+'-2'+(s%9),read:s%3===0,go:['members','health','finance','events','horses','horses'][s%6],tone:['b-info','b-warn','b-ok','b-mut','b-warn','b-ok'][s%6]});}
+ var AU=[];
+ for(var t=0;t<14;t++){AU.push({id:'A-'+String(7001+t),at:'2026-0'+((t%9)+1)+'-2'+(t%9)+' 09:'+String(10+t%50),action:['Signed in','Updated horse record','Approved member','Issued invoice','Recorded vaccination','Published event'][t%6],actor:M[t%M.length].name,module:['auth','horses','members','finance','health','events'][t%6],tone:['b-info','b-mut','b-ok','b-mut','b-ok','b-info'][t%6]});}
+ return{members:M,horses:H,events:E,health:HE,finance:F,invoices:IV,notifs:NO,audit:AU,requests:[],prefs:{density:'comfortable',accent:'green',theme:'light',org:{name:'Gorgan Horse Federation',reg:'IR-GHF-1405',phone:'+98 17 3224 0000',email:'info@gorganhf.ir'}},counters:{horse:1024,member:214,event:201,health:3001,txn:4001,inv:5001,req:1}};
+}
+
+/* --------------------------------- STORE --------------------------------- */
+var KEY='ghf-demo-v5',DB,SES=null;
+function load(){try{var s=localStorage.getItem(KEY);if(s){DB=JSON.parse(s);if(!DB.counters)DB.counters=seed().counters;if(!DB.requests)DB.requests=[];return;}}catch(e){}DB=seed();save();}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}}
+function resetDB(){DB=seed();save();}
+function loadSes(){try{var s=localStorage.getItem(KEY+'-ses');if(s)SES=JSON.parse(s);}catch(e){}}
+function saveSes(){try{if(SES)localStorage.setItem(KEY+'-ses',JSON.stringify(SES));else localStorage.removeItem(KEY+'-ses');}catch(e){}}
+function horse(id){return DB.horses.filter(function(h){return h.id===id;})[0];}
+function member(id){return DB.members.filter(function(m){return m.id===id;})[0];}
+function mname(id){var m=member(id);return m?m.name:'\u2014';}
+function hname(id){var h=horse(id);return h?h.name:'\u2014';}
+function ev(id){return DB.events.filter(function(e){return e.id===id;})[0];}
+function inv(id){return DB.invoices.filter(function(v){return v.id===id;})[0];}
+function invTotal(v){return sum(v.items,function(i){return i.q*i.p;});}
+function ownerHorses(id){return DB.horses.filter(function(h){return h.ownerId===id;});}
+
+/* ------------------------------ PERMISSIONS ------------------------------ */
+var NAV={
+ admin:['dashboard','horses','members','events','health','finance','reports','notifications','audit','settings'],
+ manager:['dashboard','horses','members','events','health','finance','reports','notifications','audit','settings'],
+ vet:['dashboard','horses','health','events','notifications'],
+ rider:['portal','events','notifications','settings']
+};
+var PAGES={
+ dashboard:{label:'Dashboard',icon:'i-grid',sec:'Operations'},
+ horses:{label:'Horse Registry',icon:'i-horse',sec:'Operations'},
+ members:{label:'Members & Licences',icon:'i-users',sec:'Operations'},
+ events:{label:'Competitions',icon:'i-calendar',sec:'Operations'},
+ health:{label:'Health & Veterinary',icon:'i-pulse',sec:'Operations'},
+ finance:{label:'Finance & Invoicing',icon:'i-wallet',sec:'Insights'},
+ reports:{label:'Reports & Analytics',icon:'i-chart',sec:'Insights'},
+ notifications:{label:'Notifications',icon:'i-bell',sec:'Insights'},
+ audit:{label:'Audit Log',icon:'i-shield',sec:'Insights'},
+ settings:{label:'Settings',icon:'i-settings',sec:'System'},
+ portal:{label:'My Portal',icon:'i-horse',sec:'Operations'}
+};
+var CAN={
+ 'horse.w':['admin','manager'],'horse.request':['rider'],'member.w':['admin','manager'],
+ 'event.w':['admin','manager'],'entry.w':['admin','manager','rider'],
+ 'health.w':['admin','manager','vet'],'finance.w':['admin','manager'],
+ 'settings.w':['admin','manager'],'audit.v':['admin','manager'],
+ 'reports.v':['admin','manager'],'approve.w':['admin','manager']
+};
+function can(p){if(!SES)return false;if(SES.role==='admin')return true;var l=CAN[p];return !l||l.indexOf(SES.role)>=0;}
+function allowed(p){return SES&&NAV[SES.role].indexOf(p)>=0;}
+
+/* --------------------------------- STATE --------------------------------- */
+var S={page:'dashboard',drawer:null,ui:{
+ horses:{q:'',breed:'all',status:'all',owner:'all',sort:'name',dir:1,page:1,perPage:8},
+ members:{q:'',role:'all',tier:'all',status:'all',sort:'name',dir:1,page:1,perPage:9,layout:'grid'},
+ events:{q:'',status:'all',tab:'entries'},
+ health:{q:'',type:'all',status:'all',sort:'next',dir:1,page:1,perPage:8},
+ finance:{tab:'txn',q:'',type:'all',cat:'all',sort:'date',dir:-1,page:1,perPage:8,iq:'',istatus:'all'},
+ reports:{module:'all',region:'all',status:'all',from:'',to:'',metric:'registrations',sort:'label',dir:1,page:1,perPage:10},
+ notif:{f:'all'},
+ audit:{q:'',module:'all',sort:'at',dir:-1,page:1,perPage:12},
+ portal:{tab:'horses',page:1,perPage:8}
+}};
+
