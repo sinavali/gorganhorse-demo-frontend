@@ -151,7 +151,20 @@ var FA = {
   'Sign-in failed — invalid username or password.':'ورود ناموفق — نام کاربری یا گذرواژه نادرست است.',
   'Signed in':'وارد شدید',
   'Credentials filled':'اطلاعات حساب درج شد',
-  'Organisation profile updated.':'مشخصات سازمان به‌روزرسانی شد.'
+  'Organisation profile updated.':'مشخصات سازمان به‌روزرسانی شد.',
+  'Invoice items':'اقلام صورت‌حساب',
+  'Description':'شرح',
+  'Qty':'تعداد',
+  'Price':'قیمت',
+  'Print invoice':'چاپ صورت‌حساب',
+  'Competition history':'سابقه مسابقات',
+  'No competition entries.':'هیچ سابقه شرکت در مسابقه‌ای یافت نشد.',
+  'Health & Veterinary records':'سوابق بهداشتی و دامپزشکی',
+  'No health records.':'سابقه بهداشتی یافت نشد.',
+  'Age':'سن',
+  'Valuation':'ارزش‌گذاری',
+  'In Training':'در حال تمرین',
+  'Scheduled':'زمان‌بندی‌شده'
 };
 var DICT = { 'fa-IR': FA, 'en-US': {} };
 var RTL_LANGS = { 'fa-IR': true };
@@ -335,6 +348,9 @@ function setLang(l){
   closePicker();
   translate(document.body);
   attachDatePickers(document.body);
+  if(window.GHF&&window.GHF.render){
+    window.GHF.render();
+  }
   window.dispatchEvent(new CustomEvent('ghf:langchange',{detail:{lang:l,dir:dir()}}));
 }
 function init(){

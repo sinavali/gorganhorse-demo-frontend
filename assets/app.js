@@ -183,7 +183,7 @@ var mOpen=false;
 function openModal(html,max){var b=$('#mbox');if(!b)return;b.innerHTML=html;b.style.maxWidth=max||'640px';$('#mw').classList.add('on');layOn();requestAnimationFrame(function(){b.classList.add('on');});mOpen=true;var f=b.querySelector('input,select,textarea');if(f)setTimeout(function(){f.focus();},140);}
 function closeModal(){if(!mOpen)return;var b=$('#mbox');b.classList.remove('on');mOpen=false;layOff();setTimeout(function(){if(!mOpen){$('#mw').classList.remove('on');b.innerHTML='';}},200);}
 var dOpen=false;
-function openDrawer(html,wide){var d=$('#drw');d.innerHTML=html;d.classList.toggle('wide',!!wide);d.setAttribute('aria-hidden','false');layOn();requestAnimationFrame(function(){d.classList.add('on');});dOpen=true;}
+function openDrawer(html,wide){var d=$('#drw');d.innerHTML='<div style="display:flex;flex-direction:column;height:100%;max-height:100vh;overflow:hidden">'+html+'</div>';d.classList.toggle('wide',!!wide);d.setAttribute('aria-hidden','false');layOn();requestAnimationFrame(function(){d.classList.add('on');});dOpen=true;}
 function closeDrawer(){if(!dOpen)return;var d=$('#drw');d.classList.remove('on');d.setAttribute('aria-hidden','true');dOpen=false;layOff();S.drawer=null;setTimeout(function(){if(!dOpen)d.innerHTML='';},300);}
 function closeAll(){closeDrawer();closeModal();sideClose();}
 function confirmDlg(o){openModal('<div class="pad" style="border-bottom:1px solid var(--border)"><div class="row gap3"><span class="badge '+(o.tone||'b-bad')+'" style="width:38px;height:38px;border-radius:12px;justify-content:center">'+ic(o.icon||'i-info','')+'</span><div class="g1"><h3 class="dsp bb" style="font-size:16.5px">'+esc(o.title)+'</h3><p class="mut i13 mt1" style="line-height:1.55">'+(o.body||'')+'</p></div></div></div><div class="pad jend row gap2"><button class="btn btn-g" data-action="ui.closeModal">'+esc(T('Cancel'))+'</button><button class="btn '+(o.tone==='b-bad'||!o.tone?'btn-d':'btn-p')+'" data-action="ui.confirmYes">'+esc(o.ok||T('Confirm'))+'</button></div>','480px');confirmDlg._fn=o.onOk;}
@@ -202,7 +202,15 @@ function renderNav(){var list=NAV[SES.role],secs={};list.forEach(function(pg){va
 function bellCount(){var c=DB.notifs.filter(function(x){return !x.read;}).length,d=$('#bellDot');if(!d)return;d.textContent=(I&&I.toFaDigits)?I.toFaDigits(c>9?'9+':c):(c>9?'9+':c);d.style.display=c?'grid':'none';}
 function go(pg,opts){if(!allowed(pg)){toast(T('That module is not available for your role.'),'w');return;}S.page=pg;closeDrawer();closeModal();var cr=$('#crumb');if(cr)cr.textContent=T(PAGES[pg].label);renderNav();render();if(window.scrollTo)if(window.scrollTo)window.scrollTo({top:0,behavior:'smooth'});if(opts&&opts.toast)toast(opts.toast);}
 function render(){var c=$('#content');if(!c)return;var fn=RENDER[S.page]||RENDER.dashboard;c.innerHTML='<div class="fade-in">'+fn()+'</div>';if(I&&I.mountDatePickers)I.mountDatePickers(c);}
-function refresh(){save();renderNav();bellCount();render();}
+function refreshDrawer(){
+  if(!dOpen||!S.drawer)return;
+  if(S.drawer.type==='horse')horseDrawer(S.drawer.id);
+  else if(S.drawer.type==='member')A['member.view']({dataset:{id:S.drawer.id}});
+  else if(S.drawer.type==='event')eventDrawer(S.drawer.id);
+  else if(S.drawer.type==='txn')A['txn.view']({dataset:{id:S.drawer.id}});
+  else if(S.drawer.type==='invoice')A['invoice.view']({dataset:{id:S.drawer.id}});
+}
+function refresh(){save();renderNav();bellCount();render();refreshDrawer();}
 var RENDER={};
 RENDER.dashboard=function(){var inc=sum(DB.finance.filter(function(f){return f.type==='Income';}),function(f){return f.amount;});var exp=sum(DB.finance.filter(function(f){return f.type==='Expense';}),function(f){return f.amount;});var pend=DB.members.filter(function(m){return m.status==='Pending';}).length;var overdue=DB.health.filter(function(r){return r.status==='Overdue';}).length;var unpaid=DB.invoices.filter(function(v){return v.status!=='Paid';}).length;
  var h='<div class="hero pad" style="padding:26px"><div style="position:relative" class="row gap4 wrap"><div class="g1" style="min-width:280px"><span class="badge" style="background:rgba(224,172,58,.18);color:#f0d79a">'+ic('i-star','icf')+' '+esc(T('Season'))+' 1405</span><h1 class="dsp bb mt3" style="font-size:clamp(22px,2.6vw,31px);color:#fff;line-height:1.2">'+esc(T('Welcome back'))+', '+esc(SES.name.split(' ')[0])+'</h1><p class="mt2 i13" style="color:#a9c3b5">'+esc(T('All figures are live demo data.'))+'</p><div class="row gap2 wrap mt4">'+(can('horse.w')?'<button class="btn btn-gold" data-action="horse.new">'+ic('i-plus','')+' '+esc(T('Register horse'))+'</button>':'')+'<button class="btn" style="background:rgba(255,255,255,.1);color:#fff" data-action="nav" data-page="events">'+ic('i-calendar','')+' '+esc(T('Competition calendar'))+'</button></div></div></div></div>';
@@ -343,9 +351,24 @@ A['finance.page']=function(el){S.ui.finance.page=+el.dataset.p;render();};
 A['finance.export']=function(){csv('finance.csv',['Date','Type','Category','Amount','Status'],DB.finance.map(function(f){return [f.date,f.type,f.cat,f.amount,f.status];}));};
 A['txn.new']=function(){if(need('finance.w'))txnForm(null);};
 A['txn.edit']=function(el){if(need('finance.w'))txnForm(DB.finance.filter(function(f){return f.id===el.dataset.id;})[0]);};
-A['txn.view']=function(el){var f=DB.finance.filter(function(x){return x.id===el.dataset.id;})[0];if(!f)return;openDrawer('<div class="pad"><div class="row jb"><h3 class="dsp bb">'+esc(T(f.cat))+'</h3><button class="btn-i" data-action="ui.closeDrawer">'+ic('i-x','')+'</button></div><div class="grid c2 mt3" style="gap:10px">'+kv('Date',fD(f.date))+kv('Type',T(f.type))+kv('Amount',K(f.amount))+kv('Status',T(f.status))+'</div></div>',false);};
+A['txn.view']=function(el){var f=DB.finance.filter(function(x){return x.id===el.dataset.id;})[0];if(!f)return;var w=can('finance.w');
+ var th='<div class="pad" style="border-bottom:1px solid var(--border);flex:none"><div class="row jb"><h3 class="dsp bb" style="font-size:17px">'+esc(T(f.cat))+'</h3><button class="btn-i" data-action="ui.closeDrawer">'+ic('i-x','')+'</button></div></div>';
+ th+='<div class="pad scroll" style="flex:1;overflow-y:auto"><div class="grid c2" style="gap:10px">'+kv('Date',fD(f.date))+kv('Type',bdg(f.type))+kv('Category',esc(T(f.cat)))+kv('Amount',K(f.amount)+' IRT')+kv('Payment method',esc(T(f.method||'Bank')))+kv('Reference',esc(f.ref||'\u2014'))+kv('Status',bdg(f.status))+'</div></div>';
+ if(w){
+  th+='<div class="pad row jend gap2" style="border-top:1px solid var(--border);background:var(--surface-2);flex:none"><button class="btn btn-p btn-sm" data-action="txn.edit" data-id="'+f.id+'">'+ic('i-edit','')+' '+esc(T('Edit transaction'))+'</button></div>';
+ }
+ openDrawer(th,false);S.drawer={type:'txn',id:f.id};};
+
 A['invoice.new']=function(){if(need('finance.w'))invoiceForm();};
-A['invoice.view']=function(el){var v=inv(el.dataset.id);if(!v)return;openDrawer('<div class="pad"><div class="row jb"><h3 class="dsp bb">'+esc(v.no)+'</h3><button class="btn-i" data-action="ui.closeDrawer">'+ic('i-x','')+'</button></div><div class="mt3">'+kv('Member',esc(mname(v.memberId)))+'</div><div class="mt3">'+kv('Total',K(invTotal(v)))+'</div></div>',false);};
+A['invoice.view']=function(el){var v=inv(el.dataset.id);if(!v)return;var w=can('finance.w');
+ var ih='<div class="pad" style="border-bottom:1px solid var(--border);flex:none"><div class="row jb gap3"><div><h3 class="dsp bb" style="font-size:17px">'+esc(v.no)+'</h3></div><div class="row gap1">'+bdg(v.status)+'<button class="btn-i" data-action="ui.closeDrawer">'+ic('i-x','')+'</button></div></div></div>';
+ ih+='<div class="pad scroll" style="flex:1;overflow-y:auto"><div class="grid c2" style="gap:10px">'+kv('Member',esc(mname(v.memberId)))+kv('Issued date',fD(v.issued))+kv('Due date',fD(v.due))+kv('Total amount',K(invTotal(v))+' IRT')+'</div>';
+ ih+='<h4 class="dsp bb mt4 mb2" style="font-size:14px">'+esc(T('Invoice items'))+'</h4>'+tw('<table class="tb"><thead><tr><th>'+esc(T('Description'))+'</th><th>'+esc(T('Qty'))+'</th><th>'+esc(T('Price'))+'</th><th>'+esc(T('Total'))+'</th></tr></thead><tbody>'+v.items.map(function(it){return '<tr><td class="b i13">'+esc(T(it.d))+'</td><td>'+n(it.q)+'</td><td>'+K(it.p)+'</td><td class="b i13">'+K(it.q*it.p)+'</td></tr>';}).join('')+'</tbody></table>');
+ ih+='</div>';
+ ih+='<div class="pad row jend gap2" style="border-top:1px solid var(--border);background:var(--surface-2);flex:none">';
+ if(w&&v.status!=='Paid')ih+='<button class="btn btn-s btn-sm" data-action="invoice.pay" data-id="'+v.id+'">'+ic('i-check','')+' '+esc(T('Mark paid'))+'</button>';
+ ih+='<button class="btn btn-p btn-sm" data-action="invoice.print" data-id="'+v.id+'">'+ic('i-print','')+' '+esc(T('Print invoice'))+'</button></div>';
+ openDrawer(ih,false);S.drawer={type:'invoice',id:v.id};};
 A['invoice.print']=function(el){var v=inv(el.dataset.id);if(!v)return;printDoc(T('Invoice')+' '+v.no,'<table><tr><td>'+T('Member')+'</td><td>'+esc(mname(v.memberId))+'</td></tr><tr><td>'+T('Issued')+'</td><td>'+fD(v.issued)+'</td></tr><tr><td>'+T('Due')+'</td><td>'+fD(v.due)+'</td></tr><tr><td>'+T('Total')+'</td><td>'+K(invTotal(v))+' IRT</td></tr></table>');};
 A['invoice.pay']=function(el){if(!need('finance.w'))return;var v=inv(el.dataset.id);if(!v)return;v.status='Paid';logA('Marked invoice paid',v.id,'finance','b-ok');save();refresh();};
 A['report.page']=function(el){S.ui.reports.page=+el.dataset.p;render();};
@@ -419,11 +442,19 @@ function invoiceForm(){openForm({title:T('New invoice'),fields:[
   {name:'desc',label:'Description',req:1},{name:'amount',label:'Amount (IRT)',type:'number',req:1}
 ],submit:function(v){var id='INV-'+(DB.counters.inv=(DB.counters.inv||5000)+1);DB.invoices.push({id:id,no:'INV-1405-'+String(100+(DB.counters.inv%900)),memberId:v.memberId,issued:v.issued,due:v.due,status:'Unpaid',items:[{d:v.desc,q:1,p:+v.amount}]});logA('Issued invoice',id,'finance','b-ok');save();refresh();toast(T('Invoice created.'));}});}
 function horseDrawer(id){var h=horse(id);if(!h)return;var w=can('horse.w');var recs=DB.health.filter(function(r){return r.horseId===h.id;});
- var hh='<div class="pad" style="border-bottom:1px solid var(--border)"><div class="row jb gap3"><div class="row gap3">'+av(h.name,'m',h.id)+'<div><h3 class="dsp bb" style="font-size:17px">'+esc(h.name)+'</h3><div class="mut i12">'+esc(T(h.breed))+' \u00b7 '+esc(T(h.sex))+'</div></div></div><div class="row gap1">'+bdg(h.status)+'<button class="btn-i" data-action="ui.closeDrawer">'+ic('i-x','')+'</button></div></div></div>';
- hh+='<div class="pad"><div class="grid c2" style="gap:10px">'+kv('Microchip',esc(h.chip))+kv('Age',n(h.age))+kv('Owner',esc(mname(h.ownerId)))+kv('Stable',esc(h.stable))+kv('Valuation',K(h.value)+' IRT')+kv('DNA',T(h.dna))+'</div>';
- hh+='<h4 class="dsp bb mt4 mb2" style="font-size:14px">'+esc(T('Health records'))+'</h4>'+(recs.length?recs.map(function(r){return rl('<div><div class="b i13">'+esc(T(r.type))+'</div><div class="mut i11">'+fD(r.date)+'</div></div>',bdg(r.status));}).join(''):'<div class="mut i12">'+esc(T('No records'))+'</div>');
- if(w)hh+='<div class="row gap2 mt4">'+btnI('i-edit',T('Edit'),'horse.edit','data-id="'+h.id+'"')+btnI('i-print',T('Print passport'),'horse.passport','data-id="'+h.id+'"')+'</div>';
- hh+='</div>';openDrawer(hh,false);S.drawer={type:'horse',id:id};}
+var evs=[];DB.events.forEach(function(e){(e.entries||[]).forEach(function(en){if(en.horseId===h.id)evs.push({e:e,en:en});});});
+ var hh='<div class="pad" style="border-bottom:1px solid var(--border);flex:none"><div class="row jb gap3"><div class="row gap3">'+av(h.name,'m',h.id)+'<div><h3 class="dsp bb" style="font-size:17px">'+esc(h.name)+'</h3><div class="mut i12">'+esc(T(h.breed))+' \u00b7 '+esc(T(h.sex))+' \u00b7 '+esc(h.color)+'</div></div></div><div class="row gap1">'+bdg(h.status)+'<button class="btn-i" data-action="ui.closeDrawer">'+ic('i-x','')+'</button></div></div></div>';
+ hh+='<div class="pad scroll" style="flex:1;overflow-y:auto"><div class="grid c2" style="gap:10px">'+kv('Microchip',esc(h.chip))+kv('Age',n(h.age)+' ('+esc(h.yob)+')')+kv('Owner',esc(mname(h.ownerId)))+kv('Stable',esc(h.stable))+kv('Sire',esc(h.sire||'\u2014'))+kv('Dam',esc(h.dam||'\u2014'))+kv('Discipline',esc(T(h.discipline)))+kv('Valuation',K(h.value)+' IRT')+kv('DNA verification',bdg(h.dna))+kv('Region',esc(h.region))+'</div>';
+ hh+='<h4 class="dsp bb mt4 mb2" style="font-size:14px">'+esc(T('Competition history'))+'</h4>'+(evs.length?evs.map(function(x){return rl('<div><div class="b i13">'+esc(x.e.name)+'</div><div class="mut i11">'+fD(x.e.date)+' \u00b7 '+esc(T(x.e.type))+'</div></div>',x.en.place?'<span class="badge b-warn">'+n(x.en.place)+'</span>':bdg(x.en.paid?'Paid':'Unpaid'));}).join(''):'<div class="mut i12">'+esc(T('No competition entries.'))+'</div>');
+ hh+='<h4 class="dsp bb mt4 mb2" style="font-size:14px">'+esc(T('Health & Veterinary records'))+'</h4>'+(recs.length?recs.map(function(r){return rl('<div><div class="b i13">'+esc(T(r.type))+'</div><div class="mut i11">'+fD(r.date)+' \u00b7 '+esc(mname(r.vetId))+'</div></div>',bdg(r.status));}).join(''):'<div class="mut i12">'+esc(T('No health records.'))+'</div>');
+ hh+='</div>';
+ if(w||SES.role==='rider'){
+  hh+='<div class="pad row jend gap2" style="border-top:1px solid var(--border);background:var(--surface-2);flex:none">';
+  if(w||(SES.role==='rider'&&h.ownerId===SES.memberId))hh+='<button class="btn btn-g btn-sm" data-action="horse.edit" data-id="'+h.id+'">'+ic('i-edit','')+' '+esc(T('Edit'))+'</button>';
+  if(w)hh+='<button class="btn btn-p btn-sm" data-action="horse.passport" data-id="'+h.id+'">'+ic('i-print','')+' '+esc(T('Print passport'))+'</button>';
+  hh+='</div>';
+ }
+ openDrawer(hh,false);S.drawer={type:'horse',id:id};}
 function bellPop(){var u=DB.notifs.filter(function(x){return !x.read;});var bp=$('#bellPop');if(!bp)return;bp.innerHTML='<div class="row jb pad-s" style="border-bottom:1px solid var(--border)"><span class="b i13">'+esc(T('Notifications centre'))+'</span><button class="btn-i" data-action="ui.bellClose">'+ic('i-x','')+'</button></div>'+(u.length?u.slice(0,6).map(function(x){return '<div class="pad-s i12" style="border-bottom:1px solid var(--border);cursor:pointer" data-action="notif.open" data-id="'+x.id+'">'+esc(x.text)+'<div class="mut i11 mt1">'+fDT(x.date)+'</div></div>';}).join(''):'<div class="pad-s mut i12">'+esc(T('No notifications'))+'</div>');bp.classList.toggle('on');}
 function closeBell(){var bp=$('#bellPop');if(bp)bp.classList.remove('on');}
 
@@ -517,6 +548,8 @@ function boot(){load();loadSes();applyPrefs();renderAccounts();renderAccounts();
  });
 
  document.addEventListener('click',function(e){
+if(!e.target.closest('#bellPop')&&!e.target.closest('[data-action="ui.bell"]')){closeBell();}
+if(!e.target.closest('#gpop')&&!e.target.closest('#gsearch')){var gp=$('#gpop');if(gp)gp.classList.remove('on');}
   var gitem=e.target.closest('#gpop [data-go]');
   if(gitem){
     $('#gpop').classList.remove('on');
