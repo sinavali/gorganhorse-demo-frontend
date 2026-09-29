@@ -442,7 +442,7 @@ function invoiceForm(){openForm({title:T('New invoice'),fields:[
   {name:'desc',label:'Description',req:1},{name:'amount',label:'Amount (IRT)',type:'number',req:1}
 ],submit:function(v){var id='INV-'+(DB.counters.inv=(DB.counters.inv||5000)+1);DB.invoices.push({id:id,no:'INV-1405-'+String(100+(DB.counters.inv%900)),memberId:v.memberId,issued:v.issued,due:v.due,status:'Unpaid',items:[{d:v.desc,q:1,p:+v.amount}]});logA('Issued invoice',id,'finance','b-ok');save();refresh();toast(T('Invoice created.'));}});}
 function horseDrawer(id){var h=horse(id);if(!h)return;var w=can('horse.w');var recs=DB.health.filter(function(r){return r.horseId===h.id;});
- var evs=[];DB.events.forEach(function(e){(e.entries||[]).forEach(function(en){if(en.horseId===h.id)evs.push({e:e,en:en});});});
+var evs=[];DB.events.forEach(function(e){(e.entries||[]).forEach(function(en){if(en.horseId===h.id)evs.push({e:e,en:en});});});
  var hh='<div class="pad" style="border-bottom:1px solid var(--border);flex:none"><div class="row jb gap3"><div class="row gap3">'+av(h.name,'m',h.id)+'<div><h3 class="dsp bb" style="font-size:17px">'+esc(h.name)+'</h3><div class="mut i12">'+esc(T(h.breed))+' \u00b7 '+esc(T(h.sex))+' \u00b7 '+esc(h.color)+'</div></div></div><div class="row gap1">'+bdg(h.status)+'<button class="btn-i" data-action="ui.closeDrawer">'+ic('i-x','')+'</button></div></div></div>';
  hh+='<div class="pad scroll" style="flex:1;overflow-y:auto"><div class="grid c2" style="gap:10px">'+kv('Microchip',esc(h.chip))+kv('Age',n(h.age)+' ('+esc(h.yob)+')')+kv('Owner',esc(mname(h.ownerId)))+kv('Stable',esc(h.stable))+kv('Sire',esc(h.sire||'\u2014'))+kv('Dam',esc(h.dam||'\u2014'))+kv('Discipline',esc(T(h.discipline)))+kv('Valuation',K(h.value)+' IRT')+kv('DNA verification',bdg(h.dna))+kv('Region',esc(h.region))+'</div>';
  hh+='<h4 class="dsp bb mt4 mb2" style="font-size:14px">'+esc(T('Competition history'))+'</h4>'+(evs.length?evs.map(function(x){return rl('<div><div class="b i13">'+esc(x.e.name)+'</div><div class="mut i11">'+fD(x.e.date)+' \u00b7 '+esc(T(x.e.type))+'</div></div>',x.en.place?'<span class="badge b-warn">'+n(x.en.place)+'</span>':bdg(x.en.paid?'Paid':'Unpaid'));}).join(''):'<div class="mut i12">'+esc(T('No competition entries.'))+'</div>');
@@ -548,8 +548,8 @@ function boot(){load();loadSes();applyPrefs();renderAccounts();renderAccounts();
  });
 
  document.addEventListener('click',function(e){
-  if(!e.target.closest('#bellPop')&&!e.target.closest('[data-action="ui.bell"]')){closeBell();}
-  if(!e.target.closest('#gpop')&&!e.target.closest('#gsearch')){var gp=$('#gpop');if(gp)gp.classList.remove('on');}
+if(!e.target.closest('#bellPop')&&!e.target.closest('[data-action="ui.bell"]')){closeBell();}
+if(!e.target.closest('#gpop')&&!e.target.closest('#gsearch')){var gp=$('#gpop');if(gp)gp.classList.remove('on');}
   var gitem=e.target.closest('#gpop [data-go]');
   if(gitem){
     $('#gpop').classList.remove('on');
