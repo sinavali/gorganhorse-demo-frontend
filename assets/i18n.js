@@ -160,7 +160,11 @@ var FA = {
   'Competition history':'سابقه مسابقات',
   'No competition entries.':'هیچ سابقه شرکت در مسابقه‌ای یافت نشد.',
   'Health & Veterinary records':'سوابق بهداشتی و دامپزشکی',
-  'No health records.':'سابقه بهداشتی یافت نشد.'
+  'No health records.':'سابقه بهداشتی یافت نشد.',
+  'Age':'سن',
+  'Valuation':'ارزش‌گذاری',
+  'In Training':'در حال تمرین',
+  'Scheduled':'زمان‌بندی‌شده'
 };
 var DICT = { 'fa-IR': FA, 'en-US': {} };
 var RTL_LANGS = { 'fa-IR': true };
